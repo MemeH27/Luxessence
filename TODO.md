@@ -1,3 +1,5 @@
-- [ ] Remove hero section completely (CSS and JS references)
-- [ ] Remove offline catalog viewing (disable caching, only load from Firebase when online)
-- [ ] Update service worker to not cache products
+- [x] Create firebase-config.js with Firebase configuration
+- [x] Update index.html to load config from firebase-config.js
+- [x] Add firebase-config.js to .gitignore
+- [ ] Rotate and revoke the exposed API key in Firebase console
+- [x] Test the application to ensure Firebase still works (local server running on port 8000)
