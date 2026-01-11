@@ -221,7 +221,12 @@ function displayProducts(productList) {
 
         productCard.innerHTML = `
             ${outOfStockLabel}
-            <img src="${product.imageUrl || 'images/logo.svg'}" alt="${product.name}" class="product-image">
+            <div class="product-image-container">
+                <img src="${product.imageUrl || 'images/logo.svg'}" alt="${product.name}" class="product-image">
+                <div class="zoom-overlay" data-id="${product.id}">
+                    <i class="fas fa-search-plus"></i>
+                </div>
+            </div>
             <div class="product-info">
                 <h3 class="product-name" title="${product.name}">${product.name}</h3>
                 <p class="product-price" data-id="${product.id}">L <strong>${isJibbitz ? '25' : product.price}</strong></p>
@@ -458,6 +463,21 @@ function showCart() {
     cartSection.classList.remove('hidden');
     cartSection.style.display = 'block';
     displayCartItems();
+}
+
+// Show checkout
+function showCheckout() {
+    // Acceder a cart desde el scope global (definido en script.js)
+    if (!window.cart || window.cart.length === 0) {
+        showNotification('El carrito está vacío', 'warning');
+        showProducts();
+        return;
+    }
+    hideAllSections();
+    const checkoutSection = document.getElementById('checkout');
+    checkoutSection.classList.remove('hidden');
+    checkoutSection.style.display = 'block';
+    updateCartPreview();
 }
 
 
@@ -877,6 +897,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Product modal functionality
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('product-image')) {
+            const productCard = e.target.closest('.product-card');
+            const productId = productCard.querySelector('.add-to-cart').dataset.id;
+            openProductModal(productId);
+        }
+
+        // Modal close button
+        if (e.target.classList.contains('modal-close') || e.target.closest('.modal-close')) {
+            closeProductModal();
+        }
+
+        // Modal overlay click to close
+        if (e.target.classList.contains('modal-overlay') && e.target.id === 'product-modal') {
+            closeProductModal();
+        }
+
+        // Zoom overlay
+        if (e.target.classList.contains('zoom-overlay') || e.target.closest('.zoom-overlay')) {
+            const zoomOverlay = e.target.classList.contains('zoom-overlay') ? e.target : e.target.closest('.zoom-overlay');
+            const productId = zoomOverlay.dataset.id;
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                openZoomModal(product.imageUrl || 'images/logo.svg', product.name);
+            }
+        }
+
+        // Zoom button
+        if (e.target.classList.contains('zoom-btn') || e.target.closest('.zoom-btn')) {
+            const zoomBtn = e.target.classList.contains('zoom-btn') ? e.target : e.target.closest('.zoom-btn');
+            const imageUrl = zoomBtn.dataset.image;
+            const imageName = zoomBtn.dataset.name;
+            openZoomModal(imageUrl, imageName);
+        }
+
+        // Enlarged modal quantity buttons
+        if (e.target.classList.contains('enlarged-plus') || e.target.closest('.enlarged-plus')) {
+            const productId = e.target.dataset.id || e.target.closest('.enlarged-plus').dataset.id;
+            updateEnlargedQuantity(productId, 1);
+        }
+
+        if (e.target.classList.contains('enlarged-minus') || e.target.closest('.enlarged-minus')) {
+            const productId = e.target.dataset.id || e.target.closest('.enlarged-minus').dataset.id;
+            updateEnlargedQuantity(productId, -1);
+        }
+
+        // Enlarged modal add to cart button
+        if (e.target.classList.contains('enlarged-btn') && e.target.classList.contains('add-to-cart')) {
+            const productId = e.target.dataset.id;
+            const isJibbitz = e.target.dataset.jibbitz === 'true';
+            if (isJibbitz) {
+                openJibbitzModal(productId);
+            } else {
+                addToCart(productId);
+            }
+            closeProductModal();
+        }
+
+    // Enlarged modal choose combo button
+    if (e.target.classList.contains('enlarged-btn') && e.target.classList.contains('choose-combo-btn')) {
+        const productId = e.target.dataset.id;
+        openJibbitzModal(productId);
+        closeProductModal();
+    }
+    });
+
+    // Zoom modal close functionality
+    document.addEventListener('click', (e) => {
+        // Modal close button for zoom modal
+        if (e.target.classList.contains('zoom-modal-close') || e.target.closest('.zoom-modal-close')) {
+            closeZoomModal();
+        }
+
+        // Modal overlay click to close zoom modal
+        if (e.target.classList.contains('modal-overlay') && e.target.id === 'zoom-modal') {
+            closeZoomModal();
+        }
+    });
+
     // Handle quantity change in cart
     document.addEventListener('change', (e) => {
         if (e.target.classList.contains('cart-quantity-input')) {
@@ -1168,6 +1268,83 @@ function confirmComboSelection() {
     closeJibbitzModal();
 }
 
+// Product modal functions
+function openProductModal(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const isJibbitz = product.name.toLowerCase().includes('jibbitz');
+    const isOutOfStock = product.stock === 0;
+
+    // Create modal HTML - enlarged product card style
+    const modalHtml = `
+        <div class="modal-overlay" id="product-modal">
+            <div class="modal-content enlarged-product-card">
+                <div class="modal-close">&times;</div>
+                <div class="enlarged-product-image-container">
+                    <img src="${product.imageUrl || 'images/logo.svg'}" alt="${product.name}" class="enlarged-product-image">
+                    <button class="zoom-btn" data-image="${product.imageUrl || 'images/logo.svg'}" data-name="${product.name}">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                </div>
+                <div class="enlarged-product-info">
+                    <h3 class="enlarged-product-name">${product.name}</h3>
+                    <p class="enlarged-product-price">L. <strong>${isJibbitz ? '25' : product.price}</strong></p>
+                    <p class="enlarged-product-stock">Stock: ${product.stock}</p>
+                    <p class="enlarged-product-category">Categoría: ${formatCategory(product.category)}</p>
+                    ${isOutOfStock ? '<div class="out-of-stock-notice">Producto agotado. Recibiremos más próximamente.</div>' : ''}
+                    <div class="enlarged-product-actions">
+                        ${!isOutOfStock ? `
+                            ${isJibbitz ? `
+                                <button class="choose-combo-btn enlarged-btn" data-id="${product.id}">
+                                    <i class="fas fa-plus"></i> Elegir Combos
+                                </button>
+                                <button class="add-to-cart enlarged-btn" data-id="${product.id}" data-jibbitz="true">
+                                    <i class="fas fa-cart-plus"></i> Agregar al Carrito
+                                </button>
+                            ` : `
+                                <div class="quantity-controls enlarged-quantity">
+                                    <button class="quantity-btn minus-btn enlarged-minus" data-id="${product.id}"><i class="fas fa-minus-circle"></i></button>
+                                    <span class="quantity-display enlarged-quantity-display" data-id="${product.id}">0</span>
+                                    <button class="quantity-btn plus-btn enlarged-plus" data-id="${product.id}"><i class="fas fa-plus-circle"></i></button>
+                                </div>
+                                <button class="add-to-cart enlarged-btn" data-id="${product.id}">
+                                    <i class="fas fa-cart-plus"></i> Agregar al Carrito
+                                </button>
+                            `}
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function updateModalQuantityForProduct(productId, change) {
+    const quantityDisplay = document.querySelector(`.modal-quantity-display[data-id="${productId}"]`);
+    const product = products.find(p => p.id === productId);
+    let currentQuantity = parseInt(quantityDisplay.textContent);
+
+    currentQuantity += change;
+
+    if (currentQuantity < 0) currentQuantity = 0;
+    if (currentQuantity > product.stock) {
+        showNotification('Sin stock suficiente. Recibiremos más próximamente.', 'error');
+        return;
+    }
+
+    quantityDisplay.textContent = currentQuantity;
+}
+
+function closeProductModal() {
+    const modal = document.getElementById('product-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
 // Handle checkout form submission
 async function handleCheckout(e) {
     e.preventDefault();
@@ -1222,4 +1399,58 @@ async function handleCheckout(e) {
     updateCartCount();
     showProducts();
     showNotification('¡Gracias por tu pedido!', 'success');
+}
+
+// Zoom modal functions
+function openZoomModal(imageUrl, imageName) {
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal-overlay" id="zoom-modal">
+            <div class="modal-content zoom-modal-content">
+                <div class="zoom-modal-close">&times;</div>
+                <img src="${imageUrl}" alt="${imageName}" class="zoom-modal-image">
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Load image to get its natural dimensions
+    const img = new Image();
+    img.onload = function() {
+        const naturalWidth = this.naturalWidth;
+        const naturalHeight = this.naturalHeight;
+        const imageAspectRatio = naturalWidth / naturalHeight;
+
+        // Adjust modal size to fit screen while maintaining image aspect ratio
+        const modalContent = document.querySelector('.zoom-modal-content');
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        const screenAspectRatio = screenWidth / screenHeight;
+
+        let modalWidth, modalHeight;
+
+        if (imageAspectRatio > screenAspectRatio) {
+            // Image is wider relative to screen, limit by width
+            modalWidth = screenWidth * 0.9; // 90% of screen width for some padding
+            modalHeight = modalWidth / imageAspectRatio;
+        } else {
+            // Image is taller relative to screen, limit by height
+            modalHeight = screenHeight * 0.9; // 90% of screen height for some padding
+            modalWidth = modalHeight * imageAspectRatio;
+        }
+
+        modalContent.style.width = `${modalWidth}px`;
+        modalContent.style.height = `${modalHeight}px`;
+        modalContent.style.maxWidth = '90vw';
+        modalContent.style.maxHeight = '90vh';
+    };
+    img.src = imageUrl;
+}
+
+function closeZoomModal() {
+    const modal = document.getElementById('zoom-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
