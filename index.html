@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxessence - Catálogo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="gradual-blur.css">
+    <link rel="icon" href="images/logo.ico">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Three.js for Silk Background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Firebase SDK -->
+    <script>
+        // Load Firebase
+        import("https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js").then(({ initializeApp }) => {
+            import("https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js").then(({ getFirestore, collection, getDocs, onSnapshot, query, where }) => {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyC8Tcgs8zOEch839wB_9pbz4vSugO6g5qo",
+                    authDomain: "luxessence504.firebaseapp.com",
+                    databaseURL: "https://luxessence504-default-rtdb.firebaseio.com",
+                    projectId: "luxessence504",
+                    storageBucket: "luxessence504.firebasestorage.app",
+                    messagingSenderId: "534451464073",
+                    appId: "1:534451464073:web:6b296fabe59cef807be358",
+                    measurementId: "G-686F564NLJ"
+                };
+
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+
+                console.log("Firebase initialized successfully");
+
+                window.db = db;
+                window.collection = collection;
+                window.getDocs = getDocs;
+                window.onSnapshot = onSnapshot;
+                window.query = query;
+                window.where = where;
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="nav-left">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Buscar productos...">
+                    <button id="search-btn"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            <div class="logo">
+                <img src="images/logo.svg" alt="Luxessence Logo" class="logo-mobile">
+                <img src="images/logo-blanco.png" alt="Luxessence Logo" class="logo-desktop">
+            </div>
+            <div class="nav-right">
+                <ul class="nav-links">
+                    <li><a href="#productos"><i class="fas fa-boxes"></i> Productos</a></li>
+                    <li><a href="#contacto"><i class="fas fa-address-book"></i> Contacto</a></li>
+                    <li><a href="#" id="cart-link"><i class="fas fa-shopping-cart"></i> Carrito <span id="cart-count"
+                                class="cart-badge">0</span></a></li>
+                </ul>
+                <div class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="productos">
+            <h1>Nuestro Catálogo</h1>
+            <div class="productos-container">
+                <div id="category-filter" class="category-filter">
+                    <button class="scroll-left"><</button>
+                    <div id="category-list" class="category-list">
+                        <!-- Categories will be loaded here -->
+                    </div>
+                    <button class="scroll-right">></button>
+                </div>
+                <button id="filter-toggle" class="filter-toggle-btn"><i class="fas fa-chevron-down"></i> Filtrar productos</button>
+                <div id="additional-filters" class="additional-filters">
+                    <div class="stock-filter">
+                        <button id="in-stock-filter" class="stock-btn"><i class="fas fa-check"></i> En Stock</button>
+                        <button id="out-of-stock-filter" class="stock-btn"><i class="fas fa-times"></i> Agotado</button>
+                    </div>
+                    <div class="price-filter">
+                        <label for="price-range">Rango de Precio:</label>
+                        <input type="range" id="price-range" min="0" max="2000" value="2000" step="10">
+                        <span id="price-display">Hasta L. 2000</span>
+                    </div>
+                    <div class="filter-actions">
+                        <button id="apply-filters" class="apply-filters-btn"><i class="fas fa-filter"></i> Aplicar Filtros</button>
+                        <button id="clear-filters" class="clear-filters-btn"><i class="fas fa-trash"></i> Borrar Filtros</button>
+                    </div>
+                </div>
+                <div id="product-grid" class="product-grid">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <section id="carrito" class="hidden" style="display: none;">
+            <div class="cart-container">
+                <button class="cart-close-btn">
+                    <span class="sr-only">Close cart</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                        stroke="currentColor" class="cart-close-icon">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <div class="cart-content">
+                    <ul id="cart-items" class="cart-items-list"></ul>
+                    <div class="cart-actions">
+                        <a href="#" id="view-cart-link" class="view-cart-link">Ver mi carrito (<span
+                                id="cart-item-count">0</span>)</a>
+                        <a href="#" id="checkout-link" class="checkout-link">Proceder al pago</a>
+                        <a href="#" id="continue-shopping-link" class="continue-shopping-link">Seguir comprando</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="checkout" class="hidden" style="display: none;">
+            <div class="checkout-container">
+                <div class="checkout-content">
+                    <div class="checkout-left">
+                        <h2><i class="fas fa-clipboard-list"></i> Información de Envío</h2>
+                        <div class="delivery-options">
+                            <label class="delivery-option">
+                                <input type="radio" name="deliveryType" value="delivery" checked>
+                                <i class="fas fa-truck"></i> Delivery
+                            </label>
+                            <label class="delivery-option">
+                                <input type="radio" name="deliveryType" value="pickup">
+                                <i class="fas fa-store"></i> Recoger en Tienda
+                            </label>
+                        </div>
+                        <form id="checkout-form">
+                            <div class="form-group">
+                                <label for="name"><i class="fas fa-user"></i> Nombre Completo *</label>
+                                <input type="text" id="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="telefono">Teléfono *</label>
+                                <div class="phone-input">
+                                    <span class="country-code">+504</span>
+                                    <input type="text" id="telefono" name="telefono" placeholder="8 dígitos" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="city"><i class="fas fa-city"></i> Ciudad *</label>
+                                <input type="text" id="city" required>
+                            </div>
+                            <div class="form-group" id="address-group">
+                                <label for="address"><i class="fas fa-map-marker-alt"></i> Dirección de Entrega
+                                    *</label>
+                                <textarea id="address" required></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="checkout-right">
+                        <div class="cart-preview">
+                            <h3>Resumen del Pedido</h3>
+                            <div id="cart-preview-items">
+                                <!-- Los items del carrito se insertarán aquí dinámicamente -->
+                            </div>
+                            <div class="cart-totals">
+                                <div class="summary-row">
+                                    <span>Subtotal</span>
+                                    <span id="subtotal-amount">L. 0.00</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Envío</span>
+                                    <span id="shipping-amount">L. 0.00</span>
+                                </div>
+                                <div class="summary-row total">
+                                    <span>Total a Pagar</span>
+                                    <span id="total-amount">L. 0.00</span>
+                                </div>
+                            </div>
+                            <button type="submit" form="checkout-form" class="submit-order">
+                                <i class="fab fa-whatsapp"></i> Enviar Pedido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="contacto">
+        <div class="footer-content">
+            <div class="contact-item">
+                <i class="fas fa-phone"></i>
+                <a href="tel:33135869">33135869</a> | <a href="tel:88966603">88966603</a>
+            </div>
+            <div class="contact-item">
+                <i class="fas fa-envelope"></i>
+                <a href="mailto:luxessence504@gmail.com">luxessence504@gmail.com</a>
+            </div>
+            <div class="contact-item">
+                <a href="https://www.instagram.com/luxessence504" target="_blank">
+                    <img src="images/instagram.png" alt="Instagram" class="social-icon">
+                    luxessence504
+                </a>
+            </div>
+            <div class="contact-item">
+                <a href="https://chat.whatsapp.com/GHxLNHlFzuG60vzrcVIxlw" target="_blank" class="whatsapp-group">
+                    <img src="images/whatsapp.png" alt="WhatsApp Group" class="social-icon">
+                    Unirse al Grupo
+                </a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Luxessence. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script src="navigation.js"></script>
+    <script src="gradual-blur.js"></script>
+    <script src="silk-vanilla.js"></script>
+    <script>
+        // Asegurarse de que el checkout esté oculto al inicio
+        document.addEventListener('DOMContentLoaded', function () {
+            hideAllSections();
+            showProducts();
+
+            // Initialize gradual blur effect
+            const blurEffect = createGradualBlur({
+                target: "page",
+                position: "bottom",
+                height: "8rem",
+                strength: 2,
+                divCount: 5,
+                curve: "bezier",
+                exponential: true,
+                opacity: 1,
+                zIndex: 1000
+            });
+
+            // Mount the blur effect to the page
+            blurEffect.mount();
+        });
+    </script>
+</body>
+
+</html>

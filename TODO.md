@@ -1,0 +1,3 @@
+- [ ] Remove hero section completely (CSS and JS references)
+- [ ] Remove offline catalog viewing (disable caching, only load from Firebase when online)
+- [ ] Update service worker to not cache products
