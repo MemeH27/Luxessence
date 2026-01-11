@@ -1,4 +1,4 @@
- // Firebase imports are already in index.html
+// Firebase imports are already in index.html
 
 // Variables globales
 window.cart = window.cart || [];
@@ -1273,10 +1273,6 @@ function openProductModal(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    const isJibbitz = product.name.toLowerCase().includes('jibbitz');
-    const isOutOfStock = product.stock === 0;
-
-    // Create modal HTML - enlarged product card style
     const modalHtml = `
         <div class="modal-overlay" id="product-modal">
             <div class="modal-content enlarged-product-card">
@@ -1289,36 +1285,15 @@ function openProductModal(productId) {
                 </div>
                 <div class="enlarged-product-info">
                     <h3 class="enlarged-product-name">${product.name}</h3>
-                    <p class="enlarged-product-price">L. <strong>${isJibbitz ? '25' : product.price}</strong></p>
+                    <p class="enlarged-product-price">L. <strong>${isJibbitzProduct(product) ? '25' : product.price}</strong></p>
                     <p class="enlarged-product-stock">Stock: ${product.stock}</p>
                     <p class="enlarged-product-category">Categoría: ${formatCategory(product.category)}</p>
-                    ${isOutOfStock ? '<div class="out-of-stock-notice">Producto agotado. Recibiremos más próximamente.</div>' : ''}
-                    <div class="enlarged-product-actions">
-                        ${!isOutOfStock ? `
-                            ${isJibbitz ? `
-                                <button class="choose-combo-btn enlarged-btn" data-id="${product.id}">
-                                    <i class="fas fa-plus"></i> Elegir Combos
-                                </button>
-                                <button class="add-to-cart enlarged-btn" data-id="${product.id}" data-jibbitz="true">
-                                    <i class="fas fa-cart-plus"></i> Agregar al Carrito
-                                </button>
-                            ` : `
-                                <div class="quantity-controls enlarged-quantity">
-                                    <button class="quantity-btn minus-btn enlarged-minus" data-id="${product.id}"><i class="fas fa-minus-circle"></i></button>
-                                    <span class="quantity-display enlarged-quantity-display" data-id="${product.id}">0</span>
-                                    <button class="quantity-btn plus-btn enlarged-plus" data-id="${product.id}"><i class="fas fa-plus-circle"></i></button>
-                                </div>
-                                <button class="add-to-cart enlarged-btn" data-id="${product.id}">
-                                    <i class="fas fa-cart-plus"></i> Agregar al Carrito
-                                </button>
-                            `}
-                        ` : ''}
-                    </div>
+                    ${isOutOfStock(product) ? '<div class="out-of-stock-notice">Producto agotado. Recibiremos más próximamente.</div>' : ''}
                 </div>
             </div>
-        </div>
-    `;
+        </div>`;
 
+    // Renderizar modal en el DOM
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
@@ -1415,42 +1390,161 @@ function openZoomModal(imageUrl, imageName) {
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    // Load image to get its natural dimensions
-    const img = new Image();
-    img.onload = function() {
-        const naturalWidth = this.naturalWidth;
-        const naturalHeight = this.naturalHeight;
-        const imageAspectRatio = naturalWidth / naturalHeight;
+    // Add zoom and pan functionality to the image
+    const img = document.querySelector('.zoom-modal-image');
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX, startY;
 
-        // Adjust modal size to fit screen while maintaining image aspect ratio
-        const modalContent = document.querySelector('.zoom-modal-content');
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        const screenAspectRatio = screenWidth / screenHeight;
+    function updateTransform() {
+        img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+    }
 
-        let modalWidth, modalHeight;
+    img.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY * -0.01;
+        const newScale = Math.min(Math.max(0.5, scale + delta), 3);
 
-        if (imageAspectRatio > screenAspectRatio) {
-            // Image is wider relative to screen, limit by width
-            modalWidth = screenWidth * 0.9; // 90% of screen width for some padding
-            modalHeight = modalWidth / imageAspectRatio;
-        } else {
-            // Image is taller relative to screen, limit by height
-            modalHeight = screenHeight * 0.9; // 90% of screen height for some padding
-            modalWidth = modalHeight * imageAspectRatio;
+        // Adjust translation to zoom towards mouse position
+        if (newScale !== scale) {
+            const rect = img.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const scaleChange = newScale / scale;
+            translateX = mouseX - (mouseX - translateX) * scaleChange;
+            translateY = mouseY - (mouseY - translateY) * scaleChange;
+            scale = newScale;
+            updateTransform();
         }
+    });
 
-        modalContent.style.width = `${modalWidth}px`;
-        modalContent.style.height = `${modalHeight}px`;
-        modalContent.style.maxWidth = '90vw';
-        modalContent.style.maxHeight = '90vh';
-    };
-    img.src = imageUrl;
+    // Add pan functionality
+    img.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        img.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    img.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+    });
+
+    img.addEventListener('mouseup', () => {
+        isDragging = false;
+        img.style.cursor = 'grab';
+    });
+
+    img.addEventListener('mouseleave', () => {
+        isDragging = false;
+        img.style.cursor = 'grab';
+    });
+
+    // Initialize cursor
+    img.style.cursor = 'grab';
 }
 
 function closeZoomModal() {
+    // Exit full screen if active
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { // Safari
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { // IE11
+            document.msExitFullscreen();
+        }
+    }
+
     const modal = document.getElementById('zoom-modal');
     if (modal) {
         modal.remove();
     }
 }
+
+// Función para mostrar el modal del producto
+function showProductModal(product) {
+    const modal = document.getElementById('product-modal');
+    const modalImage = document.getElementById('modal-product-image');
+    const modalName = document.getElementById('modal-product-name');
+    const modalPrice = document.getElementById('modal-product-price');
+    const modalDescription = document.getElementById('modal-product-description');
+
+    modalImage.src = product.imageUrl;
+    modalName.textContent = product.name;
+    modalPrice.textContent = `Precio: L. ${product.price}`;
+    modalDescription.textContent = product.description || 'Descripción no disponible';
+
+    modal.classList.remove('hidden');
+}
+
+// Función para cerrar el modal
+function closeProductModal() {
+    const modal = document.getElementById('product-modal');
+    modal.classList.add('hidden');
+}
+
+// Evento para cerrar el modal al hacer clic en el botón de cerrar
+const closeModalButton = document.querySelector('.close-modal');
+if (closeModalButton) {
+    closeModalButton.addEventListener('click', closeProductModal);
+}
+
+// Evento para cerrar el modal al hacer clic fuera del contenido
+const modal = document.getElementById('product-modal');
+if (modal) {
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeProductModal();
+        }
+    });
+}
+
+// Agregar evento de clic a cada producto
+function attachProductClickEvents() {
+    const productElements = document.querySelectorAll('.product-grid .product-item');
+    productElements.forEach((productElement) => {
+        productElement.addEventListener('click', () => {
+            const productId = productElement.dataset.productId;
+            const product = window.products.find((p) => p.id === productId);
+            if (product) {
+                showProductModal(product);
+            }
+        });
+    });
+}
+
+// Llamar a esta función después de cargar los productos
+attachProductClickEvents();
+
+// Función para habilitar pantalla completa
+function enableFullScreen(imageElement) {
+    if (imageElement.requestFullscreen) {
+        imageElement.requestFullscreen();
+    } else if (imageElement.webkitRequestFullscreen) { // Safari
+        imageElement.webkitRequestFullscreen();
+    } else if (imageElement.msRequestFullscreen) { // IE11
+        imageElement.msRequestFullscreen();
+    }
+}
+
+// Agregar evento al botón de pantalla completa
+function attachFullScreenEvent() {
+    const zoomButton = document.querySelector('.zoom-btn');
+    const modalImage = document.getElementById('modal-product-image');
+
+    if (zoomButton && modalImage) {
+        zoomButton.addEventListener('click', () => enableFullScreen(modalImage));
+    }
+}
+
+// Llamar a esta función después de abrir el modal
+attachFullScreenEvent();
